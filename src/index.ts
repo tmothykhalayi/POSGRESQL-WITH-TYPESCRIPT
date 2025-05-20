@@ -7,7 +7,7 @@ const { Pool } = require('pg');
     try {
         // user operations
 
-        // 1. Create tables if it doesn't exist
+        //. Create tables if it doesn't exist
         await initializeTables();
 
         // 2. Insert a test user
