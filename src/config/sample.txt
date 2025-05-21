@@ -1,0 +1,236 @@
+-- Create sales tables for 2024 and 2025
+CREATE TABLE sales_2024 (
+    sale_id INT PRIMARY KEY,
+    product_id INT,
+    sale_amount DECIMAL(10, 2),
+    sale_date DATE
+);
+
+CREATE TABLE sales_2025 (
+    sale_id INT PRIMARY KEY,
+    product_id INT,
+    sale_amount DECIMAL(10, 2),
+    sale_date DATE
+);
+
+-- Insert data for sales in 2024
+INSERT INTO sales_2024 (sale_id, product_id, sale_amount, sale_date) VALUES
+(1, 101, 500.00, '2024-01-01'),
+(2, 102, 150.00, '2024-02-15'),
+(3, 103, 200.00, '2024-03-01');
+
+-- Insert data for sales in 2025
+INSERT INTO sales_2025 (sale_id, product_id, sale_amount, sale_date) VALUES
+(1, 101, 600.00, '2025-01-01'),
+(2, 102, 150.00, '2025-02-15'),
+(4, 104, 300.00, '2025-03-05');
+
+//except
+This query will return the sales that exist in sales_2024 but not in sales_2025.
+SELECT sale_id, product_id, sale_amount, sale_date
+FROM sales_2024
+EXCEPT
+SELECT sale_id, product_id, sale_amount, sale_date
+FROM sales_2025;
+
+
+//INTERSECT: Find common sales between 2024 and 2025.
+This query will return the sales that exist in both sales_2024 and sales_2025.
+SELECT sale_id, product_id, sale_amount, sale_date
+FROM sales_2024
+INTERSECT
+SELECT sale_id, product_id, sale_amount, sale_date
+FROM sales_2025;
+
+./ UNION: Combine sales from 2024 and 2025.
+This query will combine all sales from both years, eliminating any duplicates.
+SELECT sale_id, product_id, sale_amount, sale_date
+FROM sales_2024
+UNION
+SELECT sale_id, product_id, sale_amount, sale_date
+FROM sales_2025;
+
+
+//FULL OUTER JOIN: Find all sales that are in either 2024 or 2025, including differences.
+This query will return all sales, even if they exist in only one table, and show which table (year) they belong to.
+SELECT COALESCE(s2024.sale_id, s2025.sale_id) AS sale_id,
+       COALESCE(s2024.product_id, s2025.product_id) AS product_id,
+       COALESCE(s2024.sale_amount, s2025.sale_amount) AS sale_amount,
+       COALESCE(s2024.sale_date, s2025.sale_date) AS sale_date
+FROM sales_2024 s2024
+FULL OUTER JOIN sales_2025 s2025
+    ON s2024.sale_id = s2025.sale_id;
+
+
+
+. Preparing Sample Data:
+Let’s first create a table called sales and insert some duplicate sales records.
+
+Creating the Sales Table:
+sql
+CREATE TABLE sales(
+    id SERIAL PRIMARY KEY,
+    product_name VARCHAR(100) NOT NULL,
+    amount DECIMAL(10, 2) NOT NULL,
+    sale_date DATE NOT NULL
+);
+Inserting Sample Sales Data (with duplicates):
+INSERT INTO sales(product_name, amount, sale_date)
+VALUES
+  ('Laptop', 1000.00, '2024-05-01'),
+  ('Laptop', 1000.00, '2024-05-01'),  -- Duplicate sale of Laptop
+  ('Phone', 500.00, '2024-05-02'),
+  ('Phone', 500.00, '2024-05-02'),  -- Duplicate sale of Phone
+  ('Tablet', 300.00, '2024-05-03'),
+  ('Tablet', 300.00, '2024-05-03');  -- Duplicate sale of Tablet
+After running this query, the sales table will look like this:
+
+id | product_name | amount | sale_date
+----+--------------+--------+------------
+  1 | Laptop       | 1000.00 | 2024-05-01
+  2 | Laptop       | 1000.00 | 2024-05-01
+  3 | Phone        | 500.00  | 2024-05-02
+  4 | Phone        | 500.00  | 2024-05-02
+  5 | Tablet       | 300.00  | 2024-05-03
+  6 | Tablet       | 300.00  | 2024-05-03
+2. Finding Duplicate Sales Records
+To find duplicate records based on product_name and sale_date, you can use the following query:
+
+
+Edit
+SELECT 
+    product_name, 
+    sale_date, 
+    COUNT(*) AS duplicate_count
+FROM 
+    sales
+GROUP BY 
+    product_name, sale_date
+HAVING 
+    COUNT(*) > 1
+ORDER BY 
+    product_name, sale_date;
+This will output:
+
+yaml
+Copy
+Edit
+product_name | sale_date  | duplicate_count
+-------------+------------+----------------
+Laptop       | 2024-05-01 | 2
+Phone        | 2024-05-02 | 2
+Tablet       | 2024-05-03 | 2
+3. Deleting Duplicate Sales Records
+We now want to remove duplicate sales entries. Below are several approaches for handling this.
+
+Option 1: Delete Duplicate Sales Using DELETE USING
+Let’s assume we want to keep the latest sale record (the one with the highest id).
+
+sql
+Copy
+Edit
+DELETE FROM
+    sales a
+USING sales b
+WHERE
+    a.id < b.id
+    AND a.product_name = b.product_name
+    AND a.sale_date = b.sale_date;
+This query deletes duplicates where the id in table a is less than the id in table b, effectively keeping the row with the higher id.
+
+Verify the Deletion:
+sql
+Copy
+Edit
+SELECT * FROM sales;
+Output after deletion (keeping the record with the highest id):
+
+yaml
+Copy
+Edit
+id | product_name | amount | sale_date
+----+--------------+--------+------------
+  2 | Laptop       | 1000.00 | 2024-05-01
+  4 | Phone        | 500.00  | 2024-05-02
+  6 | Tablet       | 300.00  | 2024-05-03
+Option 2: Delete Duplicate Sales Using Subquery
+If you want to keep the first entry for each duplicate group (i.e., the sale with the lowest id), use the following query with a subquery and ROW_NUMBER().
+
+sql
+Copy
+Edit
+DELETE FROM sales
+WHERE id IN (
+    SELECT id
+    FROM (
+        SELECT id,
+               ROW_NUMBER() OVER (PARTITION BY product_name, sale_date ORDER BY id) AS row_num
+        FROM sales
+    ) t
+    WHERE t.row_num > 1
+);
+This query assigns a row number to each duplicate sale grouped by product_name and sale_date. It deletes all records with a row_num greater than 1, leaving the first sale in each group.
+
+Verify the Deletion:
+sql
+Copy
+Edit
+SELECT * FROM sales;
+Output after deletion (keeping the record with the lowest id):
+
+yaml
+Copy
+Edit
+id | product_name | amount | sale_date
+----+--------------+--------+------------
+  1 | Laptop       | 1000.00 | 2024-05-01
+  3 | Phone        | 500.00  | 2024-05-02
+  5 | Tablet       | 300.00  | 2024-05-03
+4. Handling Duplicates Based on Multiple Columns
+If you want to delete duplicates based on multiple columns, such as product_name and amount, you can modify the query to consider both columns when checking for duplicates.
+
+Delete Duplicate Sales Based on product_name and amount:
+sql
+Copy
+Edit
+DELETE FROM sales
+WHERE id IN (
+    SELECT id
+    FROM (
+        SELECT id,
+               ROW_NUMBER() OVER (PARTITION BY product_name, amount ORDER BY id) AS row_num
+        FROM sales
+    ) t
+    WHERE t.row_num > 1
+);
+This query removes duplicates where both the product_name and amount are the same, ensuring that only one sale record per product and amount remains.
+
+5. Alternative Approach: Using Immediate Table Method
+If you want to remove duplicates by creating an immediate (temporary) table, you can do so as follows:
+
+sql
+Copy
+Edit
+-- Step 1: Create a temporary table with the same structure as sales
+CREATE TABLE sales_temp (LIKE sales);
+
+-- Step 2: Insert distinct records into the temporary table
+INSERT INTO sales_temp (product_name, amount, sale_date)
+SELECT DISTINCT ON (product_name, sale_date) product_name, amount, sale_date
+FROM sales;
+
+-- Step 3: Drop the original sales table
+DROP TABLE sales;
+
+-- Step 4: Rename the temporary table to sales
+ALTER TABLE sales_temp RENAME TO sales;
+Summary:
+In this sales example, you’ve learned how to identify and delete duplicate sales records using various methods in PostgreSQL:
+
+Using DELETE USING: Deletes duplicates based on a self-join, keeping the latest (or earliest) record.
+
+Using Subqueries with ROW_NUMBER(): Deletes duplicates based on a row number within each group.
+
+Immediate Table Method: Creates a temporary table and replaces the original table with the cleaned data.
+
+These methods help ensure that your sales table has no redundant entries and that you can keep the most relevant sales record.

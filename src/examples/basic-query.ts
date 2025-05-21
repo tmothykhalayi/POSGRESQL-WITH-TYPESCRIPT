@@ -108,3 +108,14 @@ export const deleteAllUsers = async (): Promise<void> => {
         throw err;
     }
 }
+//deleting one user by 1d
+export const deleteOneUser =async (): Promise<void> =>{
+    try{
+        const res=await executeQuery('DELETE FROM Users WHERE id =1');
+        console.log(`Deleted ${res.rowCount} user(s)`);
+    }catch (err){
+        console.error('Error deleting data :',err);
+        throw err;
+    }
+
+}
