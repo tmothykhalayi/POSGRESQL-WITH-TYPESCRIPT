@@ -1,0 +1,174 @@
+-- Create Semester 1 table
+CREATE TABLE students_sem1 (
+    student_id INT PRIMARY KEY,
+    name VARCHAR(100),
+    course VARCHAR(50)
+);
+
+-- Create Semester 2 table
+CREATE TABLE students_sem2 (
+    student_id INT PRIMARY KEY,
+    name VARCHAR(100),
+    course VARCHAR(50)
+);
+
+-- Insert data into Semester 1
+INSERT INTO students_sem1 (student_id, name, course) VALUES
+(1, 'Alice', 'Math'),
+(2, 'Bob', 'Science'),
+(3, 'Charlie', 'History'),
+(4, 'David', 'Math');
+
+-- Insert data into Semester 2
+INSERT INTO students_sem2 (student_id, name, course) VALUES
+(2, 'Bob', 'Science'),        
+(3, 'Charlie', 'History'),    
+(5, 'Eve', 'Math'),          
+(6, 'Frank', 'Science');    
+SELECT student_id, name, course, 'Dropped after Sem1' AS status
+FROM students_sem1
+EXCEPT
+SELECT student_id, name, course, 'Dropped after Sem1' AS status
+FROM students_sem2;
+
+-- 🔍 Students who were in Sem1 but not in Sem2 (Dropped)
+SELECT student_id, name, course, 'Dropped after Sem1' AS status
+FROM students_sem1
+WHERE student_id NOT IN (SELECT student_id FROM students_sem2);
+
+-- 🔍 Students who are in Sem2 but not in Sem1 (New)
+SELECT student_id, name, course, 'New in Sem2' AS status
+FROM students_sem2
+WHERE student_id NOT IN (SELECT student_id FROM students_sem1);
+
+-- 🔄 Combine both sets to get all changes
+SELECT student_id, name, course, 'Dropped after Sem1' AS status
+FROM students_sem1
+WHERE student_id NOT IN (SELECT student_id FROM students_sem2)
+UNION
+SELECT student_id, name, course, 'New in Sem2' AS status
+FROM students_sem2
+WHERE student_id NOT IN (SELECT student_id FROM students_sem1);
+
+-- 📊 Full comparison of both semesters
+SELECT
+  COALESCE(s1.student_id, s2.student_id) AS student_id,
+  COALESCE(s1.name, s2.name) AS name,
+  COALESCE(s1.course, s2.course) AS course,
+  CASE
+    WHEN s1.student_id IS NULL THEN 'New in Sem2'
+    WHEN s2.student_id IS NULL THEN 'Dropped after Sem1'
+    ELSE 'Continued'
+  END AS status
+FROM students_sem1 s1
+FULL OUTER JOIN students_sem2 s2
+  ON s1.student_id = s2.student_id
+ORDER BY student_id;
+
+
+CREATE TABLE people (
+    id SERIAL PRIMARY KEY,
+    name TEXT,
+    email TEXT
+);
+
+
+INSERT INTO people (name, email)
+VALUES
+    ('John Doe', 'john.doe@G2.com'),
+    ('Jane Smith', 'jane.smith@G2e.com'),
+    ('John Doe', 'john.doe@G2.com'),
+    ('Alice Johnson', 'alice.johnson@G2.com'),
+    ('Bob Brown', 'bob.brown@G2.com'),
+    ('Jane Smith', 'jane.smith@G2.com'),
+    ('Charlie White', 'charlie.white@G2.com'),
+    ('Bob Brown', 'bob.brown@G2.com'),
+	('Judy jonnes', 'Judy.jonne@G2.com');
+-- This query removes duplicate rows from the 'people' table based on the combination of 'name' and 'email'.
+-- It keeps the row with the smallest 'id' for each combination of 'name' and 'email', 
+-- while deleting the rows that have duplicate 'name' and 'email' values but a larger 'id'.
+
+WITH duplicates AS (
+    SELECT 
+        p1.ctid, p1.id, p1.name, p1.email
+    FROM 
+        people p1
+    LEFT OUTER JOIN people p2
+        ON p1.name = p2.name AND p1.email = p2.email
+        AND p1.id > p2.id
+    WHERE 
+        p2.id IS NOT NULL
+)
+DELETE FROM people
+WHERE ctid IN (
+    SELECT ctid FROM duplicates
+);
+
+-- This query identifies and removes duplicate rows from the 'people' table based on 'name' and 'email'.
+-- It keeps the row with the smallest 'id' for each combination of 'name' and 'email'.
+-- The 'LEFT OUTER JOIN' is used to identify duplicates, and 'UNION ALL' ensures all duplicates are included before deletion.
+
+WITH duplicates AS (
+    SELECT 
+        p1.ctid
+    FROM people p1
+    UNION ALL
+    SELECT 
+        p2.ctid
+    FROM people p2
+    LEFT OUTER JOIN people p1
+        ON p1.name = p2.name AND p1.email = p2.email
+    WHERE p1.ctid IS NULL
+)
+DELETE FROM people
+WHERE ctid IN (
+    SELECT ctid FROM duplicates
+);
+
+
+
+select *from people
+SELECT random();
+
+-- 1. Generate a Random Floating-Point Number Between 0 and 1
+SELECT RANDOM() AS random_float;
+
+-- 2. Generate a Random Integer Between 1 and 100
+SELECT FLOOR(RANDOM() * (100 - 1 + 1) + 1) AS random_integer_1_to_100;
+
+-- 3. Generate a Random Integer Between 0 and 50
+SELECT FLOOR(RANDOM() * (50 + 1)) AS random_integer_0_to_50;
+
+-- 4. Generate a Random Floating-Point Number Between 5 and 10
+SELECT RANDOM() * (10 - 5) + 5 AS random_float_5_to_10;
+
+CREATE TABLE employees (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100),
+    department_id INT,
+    salary NUMERIC
+);
+
+INSERT INTO employees (name, department_id, salary)
+VALUES
+    ('Alice', 1, 50000),
+    ('Bob', 2, 60000),
+    ('Charlie', 1, 55000),
+    ('David', 3, 70000),
+    ('Eve', 2, 75000),
+    ('Frank', 3, 80000),
+    ('Grace', 1, 48000),
+    ('Hannah', 2, 90000);
+
+	EXPLAIN SELECT * FROM employees WHERE department_id = 1;
+	EXPLAIN ANALYZE SELECT * FROM employees WHERE department_id = 1;
+
+
+
+	SELECT *FROM EMPLOYEES
+
+
+--
+
+
+
