@@ -6,7 +6,10 @@
   "scripts": {
     "start": "ts-node src/index.ts",
     "dev": "nodemon --watch src --exec ts-node src/index.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "seed": "ts-node src/seed.ts",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "pnpm typecheck"
   },
   "keywords": [],
   "author": "",

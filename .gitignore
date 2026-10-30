@@ -1,5 +1,23 @@
 node_modules/
 dist/
+
+# Environment files
 .env
 .env.*
 !.env.example
+
+# TypeScript and test artifacts
+*.tsbuildinfo
+coverage/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Editor and operating-system files
+.vscode/*
+!.vscode/settings.json
+.idea/
+.DS_Store
+Thumbs.db

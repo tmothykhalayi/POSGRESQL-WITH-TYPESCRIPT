@@ -1,465 +1,166 @@
-# QUERYING DATA IN POSTGRES SQL USING TYPESCRIPT & NODE
+# PostgreSQL with TypeScript
 
-## [node-postgres](https://node-postgres.com/)
+A small TypeScript project that demonstrates PostgreSQL connection pooling,
+parameterized queries, transactions, table initialization, and relational
+sales data using [`node-postgres`](https://node-postgres.com/).
 
-node-postgres is a collection of node.js modules for interfacing with your PostgreSQL database. It has support for callbacks, promises, async/await, connection pooling, prepared statements, cursors, streaming results, C/C++ bindings, rich type parsing, and more! Just like PostgreSQL itself there are a lot of features: this documentation aims to get you up and running quickly and in the right direction
+## Features
 
-### Pooling
+- TypeScript configured for Node.js with strict checking.
+- PostgreSQL connection pooling through `pg`.
+- Environment-based database configuration with `dotenv`.
+- Parameterized user queries and transaction-based bulk inserts.
+- Idempotent creation of `users`, `products`, `sales`, and `sale_items` tables.
+- Sample product and sales data inserted automatically on startup.
+- Development mode with `nodemon`.
 
-In most applications you'll wannt to use a [connection pool](https://node-postgres.com/features/pooling) to manage your connections.
+## Requirements
 
-```typescript
-import { Pool } from 'pg'
-const pool = new Pool()
-const res = await pool.query('SELECT $1::text as message', ['Hello world!'])
-console.log(res.rows[0].message) // Hello world!
-```
+- Node.js 20 or newer
+- pnpm 10 or npm
+- PostgreSQL 14 or newer
+- A PostgreSQL database and user with permission to create tables
 
-#### Why pooling ?
+## Setup
 
-* Connecting a new client to the PostgreSQL server requires a handshake which can take 20-30 milliseconds. During this time passwords are negotiated, SSL may be established, and configuration information is shared with the client & server. Incurring this cost *every time* we want to execute a query would substantially slow down our application.
-* The PostgreSQL server can only handle a [limited number of clients at a time](https://wiki.postgresql.org/wiki/Number_Of_Database_Connections). Depending on the available memory of your PostgreSQL server you may even crash the server if you connect an unbounded number of clients.
-* The PostgreSQL server can only handle a [limited number of clients at a time](https://wiki.postgresql.org/wiki/Number_Of_Database_Connections). Depending on the available memory of your PostgreSQL server you may even crash the server if you connect an unbounded number of clients.
+1. Install dependencies:
 
-### Single Query
-
-If you don't need a transaction or you just need to run a single query, the pool has a convenience method to run a query on any available client in the pool. This is the preferred way to query with node-postgres if you can as it removes the risk of leaking a client.
-
-```typescript
-import pg from 'pg'
-const { Pool } = pg
- 
-const pool = new Pool()
- 
-const res = await pool.query('SELECT * FROM users WHERE id = $1', [1])
-console.log('user:', res.rows[0])
-```
-
-### Parameterized query
-
-If you are passing parameters to your queries you will want to avoid string concatenating parameters into the query text directly. This can (and often does) lead to sql injection vulnerabilities. node-postgres supports parameterized queries, passing your query text *unaltered* as well as your parameters to the PostgreSQL server where the parameters are safely substituted into the query with battle-tested parameter substitution code within the server itself.
-
-```typescript
-const text = 'INSERT INTO users(name, email) VALUES($1, $2) RETURNING *'
-const values = ['brianc', 'brian.m.carlson@gmail.com']
- 
-const res = await pool.query(text, values)
-console.log(res.rows[0])
-// { name: 'brianc', email: 'brian.m.carlson@gmail.com' }
-```
-
-### Query Config Object
-
-`pool.query` and `client.query` both support taking a config object as an argument instead of taking a string and optional array of parameters. The same example above could also be performed like so:
-
-```typescript
-const query = {
-  text: 'INSERT INTO users(name, email) VALUES($1, $2)',
-  values: ['brianc', 'brian.m.carlson@gmail.com'],
-}
- 
-const res = await client.query(query)
-console.log(res.rows[0])
-```
-
-The query config object allows for a few more advanced scenarios:
-
-PostgreSQL has the concept of a [prepared statement](https://www.postgresql.org/docs/9.3/static/sql-prepare.html). node-postgres supports this by supplying a `name` parameter to the query config object. If you supply a `name` parameter the query execution plan will be cached on the PostgreSQL server on a  **per connection basis** . This means if you use two different connections each will have to parse & plan the query once. node-postgres handles this transparently for you: a client only requests a query to be parsed the first time that particular client has seen that query name:
-
-```typescript
-const query = {
-  // give the query a unique name
-  name: 'fetch-user',
-  text: 'SELECT * FROM user WHERE id = $1',
-  values: [1],
-}
- 
-const res = await client.query(query)
-console.log(res.rows[0])
-```
-
-### Prepared statements
-
-PostgreSQL has the concept of a [prepared statement](https://www.postgresql.org/docs/9.3/static/sql-prepare.html). node-postgres supports this by supplying a `name` parameter to the query config object. If you supply a `name` parameter the query execution plan will be cached on the PostgreSQL server on a  **per connection basis** . This means if you use two different connections each will have to parse & plan the query once. node-postgres handles this transparently for you: a client only requests a query to be parsed the first time that particular client has seen that query name:
-
-```typescript
-const query = {
-  // give the query a unique name
-  name: 'fetch-user',
-  text: 'SELECT * FROM user WHERE id = $1',
-  values: [1],
-}
- 
-const res = await client.query(query)
-console.log(res.rows[0])
-```
-
-### Transactions
-
-```typescript
-import { Pool } from 'pg'
-const pool = new Pool()
- 
-const client = await pool.connect()
- 
-try {
-  await client.query('BEGIN')
-  const queryText = 'INSERT INTO users(name) VALUES($1) RETURNING id'
-  const res = await client.query(queryText, ['brianc'])
- 
-  const insertPhotoText = 'INSERT INTO photos(user_id, photo_url) VALUES ($1, $2)'
-  const insertPhotoValues = [res.rows[0].id, 's3.bucket.foo']
-  await client.query(insertPhotoText, insertPhotoValues)
-  await client.query('COMMIT')
-} catch (e) {
-  await client.query('ROLLBACK')
-  throw e
-} finally {
-  client.release()
-}
-```
-
-## Getting Started (Project Setup)
-
-### Prerequisites
-
-- Node.js (v22 or later)
-- pnpm (or npm)
-- PostgreSQL installed and running or in a Docker container
-
-### Installation Steps
-
-1. Clone the repository (or create a new directory):
-
-   ```bash
-   mkdir ts-node-postgres
-   cd ts-node-postgres
-   ```
-2. Initialize the project:
-
-   ```bash
-   pnpm init
-   ```
-3. Install required dependencies:
-
-   ```bash
-   # Core dependencies
-   pnpm add pg dotenv
-
-   # Development dependencies
-   pnpm add -D @types/node @types/pg tsx typescript
-   ```
-4. Initialize TypeScript configuration if not already present:
-
-   ```bash
-   npx tsc --init
+   ```powershell
+   pnpm install
    ```
 
-   and add below ts config
+2. Create a database named `TYPESCRIPT`:
 
-   ```json
-   {
-     "compilerOptions": {
-       "target": "ES2024", /* Set the JavaScript language version for emitted JavaScript and include compatible library declarations. */
-       "module": "NodeNext", /* Specify what module code is generated. */
-       "rootDir": "./src", /* Allow multiple folders to be treated as one when resolving modules. */
-       "outDir": "./dist", /* Specify an output folder for all emitted files. */
-       "esModuleInterop": true, /* Emit additional JavaScript to ease support for importing CommonJS modules. This enables 'allowSyntheticDefaultImports' for type compatibility. */
-       "forceConsistentCasingInFileNames": true, /* Ensure that casing is correct in imports. */
-       "strict": true, /* Enable all strict type-checking options. */
-       "skipLibCheck": true, /* Skip type checking all .d.ts files. */
-       "resolveJsonModule": true,
-     },
-     "include": [
-       "src/**/*.ts", // Include all .ts files
-     ],
-     "exclude": [
-       "node_modules" // Exclude node_modules from the compilation process
-     ]
-   }
+   ```sql
+   CREATE DATABASE "TYPESCRIPT";
    ```
-5. Create project structure:
 
-   ```
-   ts-node-postgres/
-   ├── src/
-   │   ├── config
-   │   │	└── database.ts
-   │   │	└── env.ts
-   │   └── examples/
-   │       └── basic-query.ts
-   │   └── index.ts
-   ├── .env
-   ├── .gitignore
-   ├── package.json
-   └── tsconfig.json
-   ```
-6. Setup environment variables (create `.env` file):
+3. Configure the root `.env` file:
 
-   ```
-   # PostgreSQL Connection
+   ```env
    PGHOST=localhost
-   PGUSER=postgres
-   PGDATABASE=your_database
-   PGPASSWORD=your_password
    PGPORT=5432
-
-   ```
-7. Create a `.gitignore` file to exclude sensitive information:
-
-   ```
-   node_modules/
-   dist/
-   .env
-   .env.*
-   !.env.example
+   PGUSER=postgres
+   PGPASSWORD=your_postgres_password
+   PGDATABASE=TYPESCRIPT
    ```
 
-## Environment Setup
+   Keep `.env` private and never commit real passwords.
 
-### Loading Environment Variables
+4. Start the project:
 
-Create a utility file to load environment variables:
+   ```powershell
+   pnpm dev
+   ```
 
-```typescript
-// src/config/env.ts
-import dotenv from 'dotenv';
-import path from 'path';
+   The application initializes the schema and sample sales data before running
+   the example user queries.
 
-// Load environment variables from .env file
-const result = dotenv.config({
-  path: path.resolve(process.cwd(), '.env')
-});
+For production, do not copy `.env` to the server. Set `NODE_ENV=production`
+and provide `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, and `PGDATABASE`
+through the hosting platform's environment-variable or secret-management
+system, then run:
 
-if (result.error) {
-  console.error('Error loading .env file:', result.error);
-}
-
-export default {
-  database: {
-    host: process.env.PGHOST || 'localhost',
-    port: parseInt(process.env.PGPORT || '5432', 10),
-    user: process.env.PGUSER || 'postgres',
-    password: process.env.PGPASSWORD || '',
-    database: process.env.PGDATABASE || 'postgres',
-  }
-};
-
+```powershell
+pnpm build
+pnpm start
 ```
 
-### Database Configuration File
+The application intentionally does not load `.env` when `NODE_ENV=production`
+and exits with an explicit error if a required database variable is missing.
 
-Use the environment config in your database setup:
+## Commands
 
-```typescript
-// src/config/database.ts
-import env from './env'
-import { Pool, PoolConfig, QueryResult } from 'pg'
+| Command | Description |
+| --- | --- |
+| `pnpm dev` | Run with automatic restart when `src` changes |
+| `pnpm start` | Run the application once |
+| `pnpm typecheck` | Check TypeScript without emitting files |
+| `pnpm test` | Run the project verification command |
+| `pnpm build` | Compile TypeScript into `dist` |
 
-class Database {
-    private pool: Pool;
-  
-    constructor() {
-        const poolConfig: PoolConfig = {
-            host: env.database.host,
-            port: env.database.port,
-            user: env.database.user,
-            password: env.database.password,
-            database: env.database.database,
-            max: 20,
-            idleTimeoutMillis: 30000,
-            connectionTimeoutMillis: 5000,
-            // For production with SSL:
-            // ssl: {
-            //   rejectUnauthorized: false
-            // }
-        };
-  
-        this.pool = new Pool(poolConfig);
-  
-        this.pool.on('connect', () => {
-            console.log('Connected to PostgreSQL database');
-        });
-  
-        this.pool.on('error', (err) => {
-            console.error('Unexpected error on idle client', err);
-            process.exit(-1);
-        });
-    }
-  
-    async executeQuery(text: string, params: any[] = []): Promise<QueryResult> {
-        const client = await this.pool.connect();
-        try {
-            const start = Date.now();
-            const result = await client.query(text, params);
-            const duration = Date.now() - start;
-            console.log(`Executed query: ${text} - Duration: ${duration}ms`);
-            return result;
-        } catch (error) {
-            console.error('Database query error:', error);
-            throw error;
-        } finally {
-            client.release();
-        }
-    }
-  
-    async initializeTables(): Promise<void> {
-        try {
-            // create users table
-            await this.executeQuery(`
-                CREATE TABLE IF NOT EXISTS users (
-                    id SERIAL PRIMARY KEY,
-                    fname VARCHAR(50) NOT NULL,
-                    lname VARCHAR(50) NOT NULL,
-                    age INT,
-                    created_at TIMESTAMPTZ DEFAULT NOW()
-                )
-            `);
-            console.log('Users table created or already exists');
+## Database schema
 
-            // create other tables as needed
-            console.log('Database schema initialized successfully');
-        } catch (err) {
-            console.error('Error initializing database:', err);
-            throw err;
-        }
-    }
-  
-    getPool(): Pool {
-        return this.pool;
-    }
-}
+| Table | Purpose |
+| --- | --- |
+| `users` | Example customer/user records |
+| `products` | Product catalog, prices, and stock |
+| `sales` | Sale headers and customer information |
+| `sale_items` | Products and quantities belonging to each sale |
 
-// Create singleton instance
-const db = new Database();
+`initializeTables()` in [`src/config/database.ts`](./src/config/database.ts)
+creates missing tables and seeds sample rows using conflict-safe inserts. It
+can therefore be run repeatedly without duplicating the sample products or
+sales.
 
-// Export instance methods and the database object
-export const executeQuery = (text: string, params: any[] = []) => db.executeQuery(text, params);
-export const initializeTables = () => db.initializeTables();
-export default db;
+The sample data is also available as the TypeScript seed script in
+[`src/seed.ts`](./src/seed.ts):
 
+```powershell
+pnpm seed
 ```
 
-## Using the Database
+## Useful queries
 
-### Basic Query
+Calculate the total for every sale:
 
-```typescript
-import db, { executeQuery } from "../config/database";
-
-// User interface defining the structure of user data
-export interface TUser {
-    id?: number;
-    fname: string;
-    lname: string;
-    age: number;
-    created_at?: Date;
-}
-
-// Insert a single user into the database
-export const insertOneUser = async (user: TUser): Promise<number | undefined> => {
-    try {
-        const res = await executeQuery(
-            'INSERT INTO users (fname, lname, age) VALUES ($1, $2, $3) RETURNING id',
-            [user.fname, user.lname, user.age]
-        );
-        const userId = res.rows[0]?.id;
-        console.log(`User inserted with ID: ${userId}`);
-        return userId;
-    } catch (err) {
-        console.error('Error inserting data:', err);
-        throw err;
-    }
-}
-
-
-// Insert multiple users into the database
-export const insertMultipleUsers = async (users: TUser[]): Promise<void> => {
-    // For multiple users, using a transaction is better
-    const client = await db.getPool().connect();
-    try {
-        // Begin transaction
-        await client.query('BEGIN');
-
-        // Insert each user
-        for (const user of users) {
-            await client.query(
-                'INSERT INTO users (fname, lname, age) VALUES ($1, $2, $3)',
-                [user.fname, user.lname, user.age]
-            );
-        }
-
-        // Commit transaction
-        await client.query('COMMIT');
-        console.log(`${users.length} users inserted successfully`);
-    } catch (err) {
-        await client.query('ROLLBACK');
-        console.error('Error inserting multiple users:', err);
-        throw err;
-    } finally {
-        client.release();
-    }
-}
-
-// Query all users from the database
-export const query = async (): Promise<TUser[]> => {
-    try {
-        const res = await executeQuery('SELECT * FROM users');
-        console.log(`Retrieved ${res.rows.length} users`);
-        return res.rows as TUser[];
-    } catch (err) {
-        console.error('Error querying data:', err);
-        throw err;
-    }
-};
-
-// delete all users from the database
-export const deleteAllUsers = async (): Promise<void> => {
-    try {
-        const res = await executeQuery('DELETE FROM users');
-        console.log(`Deleted ${res.rowCount} users`);
-    } catch (err) {
-        console.error('Error deleting data:', err);
-        throw err;
-    }
-}
+```sql
+SELECT
+    s.sale_reference,
+    s.customer_name,
+    SUM(si.quantity * si.unit_price) AS total_amount
+FROM sales s
+JOIN sale_items si ON si.sale_id = s.id
+GROUP BY s.id, s.sale_reference, s.customer_name
+ORDER BY s.sale_date;
 ```
 
-## Executing Queries in Index.ts
+Show product stock:
 
-```typescript
-import { initializeTables } from './config/database';
-import { query, insertMultipleUsers, insertOneUser, TUser, deleteAllUsers } from './examples/basic-query'
-
-// Self-executing async function to run the imported code
-(async () => {
-    try {
-        // user operations
-
-        // 1. Create tables if it doesn't exist
-        await initializeTables();
-
-        // 2. Insert a test user
-        const userId = await insertOneUser({ fname: 'John', lname: 'Doe', age: 30 });
-        console.log(`Inserted user with ID: ${userId}`);
-
-        // 3. Insert multiple users with a transaction
-        const usersToInsert: TUser[] = [
-            { fname: 'Jane', lname: 'Smith', age: 28 },
-            { fname: 'Bob', lname: 'Johnson', age: 35 },
-        ];
-        await insertMultipleUsers(usersToInsert);
-
-        // 4. Query all users to verify
-        const users = await query();
-        console.log('All users in database:');
-        console.table(users);
-        // 5. Delete all users
-        // await deleteAllUsers();
-
-        console.log('All operations completed successfully');
-    } catch (error) {
-        console.error('Error executing database operations:', error);
-    }
-})();
+```sql
+SELECT sku, name, category, unit_price, stock_quantity
+FROM products
+ORDER BY category, name;
 ```
+
+## Project structure
+
+```text
+src/
+├── config/
+│   ├── database.ts       # Pool, schema initialization, and sample data
+│   └── env.ts            # Environment loading and defaults
+├── examples/
+│   └── basic-query.ts    # User inserts, reads, and deletes
+└── index.ts              # Application entry point
+```
+
+## Troubleshooting
+
+### Password authentication failed
+
+Confirm that `PGUSER` and `PGPASSWORD` match an actual PostgreSQL role. The
+database name is controlled independently by `PGDATABASE`.
+
+### Database does not exist
+
+Create the database shown in `PGDATABASE`, or update the environment variables
+to use an existing database. PostgreSQL database names containing uppercase
+letters must be quoted when created.
+
+### Port connection refused
+
+Confirm that the PostgreSQL service is running and that `PGPORT` matches the
+server port, normally `5432`.
+
+### TypeScript errors
+
+Run:
+
+```powershell
+pnpm typecheck
+```
+
+## License
+
+This project is available under the license specified in `package.json`.
