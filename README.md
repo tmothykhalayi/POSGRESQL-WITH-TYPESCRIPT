@@ -35,19 +35,7 @@ sales data using [`node-postgres`](https://node-postgres.com/).
    CREATE DATABASE "TYPESCRIPT";
    ```
 
-3. Configure the root `.env` file:
-
-   ```env
-   PGHOST=localhost
-   PGPORT=5432
-   PGUSER=postgres
-   PGPASSWORD=your_postgres_password
-   PGDATABASE=TYPESCRIPT
-   ```
-
-   Keep `.env` private and never commit real passwords.
-
-4. Start the project:
+3. Start the project:
 
    ```powershell
    pnpm dev
